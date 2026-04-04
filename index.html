@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quiz Bot</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap"
+        rel="stylesheet" />
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --border: #222;
+            --accent: #00ff88;
+            --accent2: #ff3366;
+            --text: #f0f0f0;
+            --muted: #888;
+            --info: #60a5fa;
+            --warn: #fbbf24;
+            --ai: #a78bfa;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 24px;
+        }
+
+        /* Subtle grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 720px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Syne', sans-serif;
+            font-size: clamp(32px, 6vw, 52px);
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        h1 span {
+            color: var(--accent);
+        }
+
+        .subtitle {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        /* Input area */
+        .input-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-right: none;
+            color: var(--text);
+            font-family: 'Space Mono', monospace;
+            font-size: 13px;
+            padding: 14px 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent);
+        }
+
+        input[type="text"]::placeholder {
+            color: var(--muted);
+        }
+
+        button {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            font-family: 'Space Mono', monospace;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 14px 24px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: #00cc6a;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 16px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            transition: background 0.3s;
+        }
+
+        .dot.running {
+            background: var(--accent);
+            animation: pulse 1s infinite;
+        }
+
+        .dot.done {
+            background: var(--accent);
+        }
+
+        .dot.error {
+            background: var(--accent2);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        /* Log terminal */
+        .terminal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            height: 420px;
+            overflow-y: auto;
+            padding: 20px;
+            scroll-behavior: smooth;
+        }
+
+        .terminal::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .terminal::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .terminal::-webkit-scrollbar-thumb {
+            background: var(--border);
+        }
+
+        .log-line {
+            font-size: 12px;
+            line-height: 1.8;
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-time {
+            color: var(--muted);
+            flex-shrink: 0;
+        }
+
+        .log-msg {
+            flex: 1;
+            word-break: break-all;
+        }
+
+        .log-line.info .log-msg {
+            color: var(--info);
+        }
+
+        .log-line.question .log-msg {
+            color: var(--text);
+            font-weight: 700;
+        }
+
+        .log-line.success .log-msg {
+            color: var(--accent);
+        }
+
+        .log-line.ai .log-msg {
+            color: var(--ai);
+        }
+
+        .log-line.warn .log-msg {
+            color: var(--warn);
+        }
+
+        .log-line.error .log-msg {
+            color: var(--accent2);
+        }
+
+        .log-line.done .log-msg {
+            color: var(--accent);
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .log-line.page .log-msg {
+            color: var(--muted);
+            border-top: 1px solid var(--border);
+            padding-top: 8px;
+            margin-top: 4px;
+        }
+
+        .empty-state {
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 1px;
+            text-align: center;
+            margin-top: 160px;
+        }
+
+        .empty-state .icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 24px;
+            font-size: 10px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>FORM<span>BOT</span></h1>
+            <p class="subtitle">Paste a Google Form URL and let Gemini handle the rest</p>
+        </div>
+
+        <div class="input-group">
+            <label>Google Form URL</label>
+            <div class="input-row">
+                <input type="text" id="formUrl" placeholder="https://docs.google.com/forms/..." />
+                <button id="runBtn" onclick="runAutomation()">Run →</button>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div class="dot" id="dot"></div>
+            <span id="statusText">Idle</span>
+        </div>
+
+        <div class="terminal" id="terminal">
+            <div class="empty-state">
+                <div class="icon">⚡</div>
+                Logs will appear here
+            </div>
+        </div>
+
+        <div class="footer">Running locally · No data leaves your machine except to Gemini API</div>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        function getTime() {
+            return new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        }
+
+        function appendLog(msg, type = "info") {
+            const terminal = document.getElementById("terminal");
+
+            // Clear empty state on first log
+            const empty = terminal.querySelector(".empty-state");
+            if (empty) empty.remove();
+
+            const line = document.createElement("div");
+            line.className = `log-line ${type}`;
+            line.innerHTML = `<span class="log-time">${getTime()}</span><span class="log-msg">${msg}</span>`;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function setStatus(state, text) {
+            const dot = document.getElementById("dot");
+            const statusText = document.getElementById("statusText");
+            dot.className = `dot ${state}`;
+            statusText.textContent = text;
+        }
+
+        function runAutomation() {
+            const url = document.getElementById("formUrl").value.trim();
+            if (!url) return alert("Please paste a Google Form URL first.");
+
+            if (eventSource) eventSource.close();
+
+            // Clear terminal
+            document.getElementById("terminal").innerHTML = "";
+
+            document.getElementById("runBtn").disabled = true;
+            setStatus("running", "Running...");
+
+            eventSource = new EventSource(`/run?url=${encodeURIComponent(url)}`);
+
+            eventSource.onmessage = (e) => {
+                const { msg, type } = JSON.parse(e.data);
+                appendLog(msg, type);
+
+                if (type === "done") {
+                    setStatus("done", "Completed");
+                    document.getElementById("runBtn").disabled = false;
+                    eventSource.close();
+                }
+
+                if (type === "error") {
+                    setStatus("error", "Error");
+                    document.getElementById("runBtn").disabled = false;
+                    eventSource.close();
+                }
+            };
+
+            eventSource.onerror = () => {
+                setStatus("error", "Connection lost");
+                document.getElementById("runBtn").disabled = false;
+                eventSource.close();
+            };
+        }
+
+        // Allow pressing Enter to run
+        document.getElementById("formUrl").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") runAutomation();
+        });
+    </script>
+</body>
+
+</html>
