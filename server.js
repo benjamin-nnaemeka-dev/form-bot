@@ -1,8 +1,8 @@
 require("dotenv").config();
 const express = require("express");
 const { chromium } = require("playwright");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
 const path = require("path");
+const { OpenAI } = require("openai");
 
 const app = express();
 app.use(express.json());
@@ -10,28 +10,26 @@ app.use(express.static(__dirname));
 
 // Configure your Gemini API key and the directory for the Playwright profile.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const BASE_URL = process.env.BASE_URL
 const DEDICATED_PROFILE_DIR = "C:\\Users\\YOUR_USERNAME\\AppData\\Local\\PlaywrightQuizProfile";
 
-// Fill in your personal info here. 
-// for automatic filling of email fields in the form and context for the Gemini.
+// Fill in your personal info here for automatic filling
 const PERSONAL_INFO = {
     email: "your.email@example.com",
     fullName: "Your Full Name",
     phone: "+0000000000",
-    school: "Your School",
-    course: "Your Course",
-    tutor: "Your Tutor",
-    orientationDoneBy: "Your Orientation Lead"
 };
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const client = new OpenAI({
+    apiKey: GEMINI_API_KEY,
+    baseURL: BASE_URL
+})
 
 // Sends a multiple choice question to Gemini and returns the answer
 async function askGemini(questionText, options) {
     const optionsText = options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
-    const promptText = `You are an AI & Automation student at TS Academy answering a quiz question.
-Choose the most correct answer based on your knowledge of AI and automation.
+    const promptText = `You are a knowledgeable assistant answering a multiple-choice question.
+Choose the most correct answer based on general knowledge and careful reasoning.
 
 Question: ${questionText}
 
@@ -39,34 +37,34 @@ Options:
 ${optionsText}
 
 Reply with ONLY the exact text of the correct option. Nothing else.`;
-    const result = await model.generateContent(promptText);
-    return result.response.text().trim();
+    const result = await client.chat.completions.create({
+        model: "google/gemini-3-flash-preview",
+        messages: [{ role: "user", content: promptText }],
+    })
+    return result.choices[0].message.content.trim();
 }
 
 // Sends an open text question to Gemini with full identity context
 async function askGeminiOpenText(questionText) {
-    const promptText = `You are ${PERSONAL_INFO.fullName}, an AI & Automation student at TS Academy.
-You are filling out a form or answering a quiz question as yourself.
+    const promptText = `You are ${PERSONAL_INFO.fullName}.
+You are filling out a form or answering a question as yourself.
 
-Here is some information about you:
+Here is some information about you for context:
 - Full name: ${PERSONAL_INFO.fullName}
 - Email: ${PERSONAL_INFO.email}
 - Phone: ${PERSONAL_INFO.phone}
-- School: ${PERSONAL_INFO.school}
-- Course: ${PERSONAL_INFO.course}
-- Tutor: ${PERSONAL_INFO.tutor}
-- Orientation Done By: ${PERSONAL_INFO.orientationDoneBy}
 
-Answer the following question as Benjamin. If it asks for your name, give your name.
-If it's a quiz question, answer it correctly based on your knowledge.
-Keep it to 1-3 sentences. Be direct.
+Answer the following question in 1-3 concise sentences, using the information above where appropriate. If the question asks for your name or personal details, provide them exactly as given.
 
 Question: ${questionText}
 
 Reply with ONLY the answer. Nothing else.`;
 
-    const result = await model.generateContent(promptText);
-    return result.response.text().trim();
+    const result = await client.chat.completions.create({
+        model: "google/gemini-3-flash-preview",
+        messages: [{ role: "user", content: promptText }],
+    })
+    return result.choices[0].message.content.trim();
 }
 
 // SSE endpoint, streams live logs to the browser
@@ -165,6 +163,7 @@ app.get("/run", async (req, res) => {
                 log(`Options: ${options.join(" | ")}`, "info");
 
                 const answer = await askGemini(questionText, options);
+
                 log(`Gemini says: ${answer}`, "ai");
 
                 let clicked = false;

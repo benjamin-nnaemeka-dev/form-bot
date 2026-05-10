@@ -4,7 +4,9 @@
   "description": "",
   "main": "form_answerer.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon server.js",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +16,10 @@
     "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
+    "openai": "^6.37.0",
     "playwright": "^1.58.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }
